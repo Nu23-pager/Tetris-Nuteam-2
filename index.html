@@ -705,7 +705,7 @@ function initGame(){
   updateHUD();
 }
 
-document.getElementById('startBtn').onclick=()=>{
+document.getElementById('startBtn').onclick=function(){
   ensureAudio();
   playerName=document.getElementById('nameInput').value.trim()||'Worker';
   document.getElementById('startScreen').classList.remove('show');
