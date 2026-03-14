@@ -193,6 +193,7 @@
     </div>
     <input type="file" id="photoInput" accept="image/*"/>
     <div class="next-btn" id="nextBtn">NEXT LEVEL &#9654;</div>
+    <div class="share-btn" id="shareBtnLC" style="background:linear-gradient(180deg,#1877f2,#0d5bbf);color:#fff;margin-top:8px;">&#128279; SHARE TO FACEBOOK</div>
   </div>
 </div>
 
@@ -214,7 +215,7 @@
     <div class="v-sub">LEVEL 23 &mdash; SITE DEMOLISHED</div>
     <img class="v-photo" id="victoryPhoto" src="" alt=""/>
     <div class="v-score" id="vScore">0</div>
-    <div class="share-btn" id="shareBtnV">&#127942; HALL OF FAME</div>
+    <div class="share-btn" id="shareBtnV">&#128279; SHARE TO FACEBOOK</div>
     <div class="retry-btn" id="retryBtnV" style="background:linear-gradient(180deg,#333,#222);box-shadow:0 4px 0 #000">PLAY AGAIN</div>
   </div>
 </div>
@@ -723,7 +724,13 @@ document.getElementById('btnRestart').onclick=function(){
   hideOverlay('levelComplete');
   initGame();
 };
-document.getElementById('shareBtnV').onclick=function(){hideOverlay('victory');showWall();};
+document.getElementById('shareBtnV').onclick=function(){
+  shareToFacebook(MAX_LEVEL);
+};
+document.getElementById('shareBtnLC').onclick=function(){
+  var lvl=parseInt(document.getElementById('lcLevel').textContent)||level;
+  shareToFacebook(level-1);
+};
 document.getElementById('retryBtnV').onclick=function(){hideOverlay('victory');initGame();};
 
 // Photo upload
@@ -806,6 +813,157 @@ function showWall(){
 document.getElementById('closeWall').onclick=function(){hideOverlay('wallScreen');};
 document.getElementById('wallBtnStart').onclick=showWall;
 document.getElementById('wallBtnGO').onclick=showWall;
+
+
+// ── Share Card Generator ──────────────────────────────
+function generateShareCard(completedLevel, callback){
+  var W=600, H=600;
+  var offscreen=document.createElement('canvas');
+  offscreen.width=W; offscreen.height=H;
+  var c=offscreen.getContext('2d');
+
+  // Background - dark construction theme
+  c.fillStyle='#0a0a0c';
+  c.fillRect(0,0,W,H);
+
+  // Orange border frame
+  c.strokeStyle='#ff6600';
+  c.lineWidth=6;
+  c.strokeRect(3,3,W-6,H-6);
+
+  // Inner subtle border
+  c.strokeStyle='rgba(255,102,0,0.3)';
+  c.lineWidth=1;
+  c.strokeRect(14,14,W-28,H-28);
+
+  // Top: TETRIS NUTEAM logo
+  c.fillStyle='#ff6600';
+  c.font='900 28px Arial Black, Arial, sans-serif';
+  c.textAlign='center';
+  c.fillText('TETRIS NUTEAM', W/2, 52);
+
+  // Construction icon row
+  c.fillStyle='#444';
+  c.font='18px Arial';
+  c.fillText('⚒ ⚒ ⚒ ⚒ ⚒', W/2, 78);
+
+  // Player photo (if any) - centered circle
+  var photoY=100;
+  var photoSize=180;
+  var drawStats=function(){
+    // Level badge
+    var lvlText='LEVEL '+completedLevel+' COMPLETE';
+    c.fillStyle='#1a1a22';
+    c.beginPath();
+    c.roundRect(W/2-140, photoY+photoSize+20, 280, 44, 8);
+    c.fill();
+    c.strokeStyle='#ff6600';
+    c.lineWidth=1.5;
+    c.stroke();
+    c.fillStyle='#ff6600';
+    c.font='900 15px Arial Black, Arial, sans-serif';
+    c.textAlign='center';
+    c.fillText(lvlText, W/2, photoY+photoSize+48);
+
+    // Score
+    c.fillStyle='#ffffff';
+    c.font='900 64px Arial Black, Arial, sans-serif';
+    c.textAlign='center';
+    c.shadowColor='rgba(255,102,0,0.5)';
+    c.shadowBlur=20;
+    c.fillText(score.toLocaleString(), W/2, photoY+photoSize+130);
+    c.shadowBlur=0;
+
+    c.fillStyle='#888888';
+    c.font='700 14px Arial, sans-serif';
+    c.letterSpacing='3px';
+    c.fillText('POINTS', W/2, photoY+photoSize+152);
+    c.letterSpacing='0px';
+
+    // Player name
+    c.fillStyle='#ffffff';
+    c.font='900 22px Arial Black, Arial, sans-serif';
+    c.textAlign='center';
+    c.fillText(playerName, W/2, photoY+photoSize+192);
+
+    // Bottom hashtag
+    c.fillStyle='rgba(255,102,0,0.7)';
+    c.font='700 13px Arial, sans-serif';
+    c.fillText('#TetrisNuteam  #NuMetal  #ConstructionSite', W/2, H-22);
+
+    callback(offscreen.toDataURL('image/png'));
+  };
+
+  if(currentPhoto){
+    var img=new Image();
+    img.onload=function(){
+      // Circular clip
+      c.save();
+      c.beginPath();
+      c.arc(W/2, photoY+photoSize/2, photoSize/2, 0, Math.PI*2);
+      c.clip();
+      c.drawImage(img, W/2-photoSize/2, photoY, photoSize, photoSize);
+      c.restore();
+      // Circle border
+      c.strokeStyle='#ff6600';
+      c.lineWidth=3;
+      c.beginPath();
+      c.arc(W/2, photoY+photoSize/2, photoSize/2, 0, Math.PI*2);
+      c.stroke();
+      drawStats();
+    };
+    img.onerror=function(){ drawStats(); };
+    img.src=currentPhoto;
+  } else {
+    // Placeholder icon
+    c.fillStyle='#1a1a22';
+    c.beginPath();
+    c.arc(W/2, photoY+photoSize/2, photoSize/2, 0, Math.PI*2);
+    c.fill();
+    c.strokeStyle='#3a3a42';
+    c.lineWidth=2;
+    c.stroke();
+    c.font='80px Arial';
+    c.textAlign='center';
+    c.fillStyle='#444';
+    c.fillText('⚒', W/2, photoY+photoSize/2+28);
+    drawStats();
+  }
+}
+
+function shareToFacebook(completedLevel){
+  generateShareCard(completedLevel, function(dataUrl){
+    // Download the image
+    var a=document.createElement('a');
+    a.href=dataUrl;
+    a.download='tetris-nuteam-level'+completedLevel+'-'+playerName+'.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // Small delay then open Facebook
+    setTimeout(function(){
+      window.open('https://www.facebook.com/', '_blank');
+      // Show tip overlay
+      showShareTip();
+    }, 800);
+  });
+}
+
+function showShareTip(){
+  var tip=document.createElement('div');
+  tip.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
+    +'background:#1877f2;color:#fff;padding:14px 20px;border-radius:14px;'
+    +'font-size:13px;font-weight:700;z-index:9999;text-align:center;'
+    +'box-shadow:0 4px 20px rgba(0,0,0,0.5);max-width:300px;line-height:1.5;';
+  tip.innerHTML='&#128247; รูปโหลดแล้ว!<br><small style="font-weight:400;opacity:0.9">กด "สร้างโพสต์" บน Facebook แล้วแนบรูปที่ดาวน์โหลดได้เลย</small>';
+  document.body.appendChild(tip);
+  setTimeout(function(){
+    tip.style.transition='opacity 0.5s';
+    tip.style.opacity='0';
+    setTimeout(function(){if(tip.parentNode)tip.parentNode.removeChild(tip);},500);
+  }, 4000);
+}
 
 // ── Boot ──────────────────────────────────────────────
 window.addEventListener('resize',function(){resize();draw();});
