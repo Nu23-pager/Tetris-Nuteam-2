@@ -501,60 +501,76 @@ function spawnPiece(){
   nextPiece=randPiece();
   pieceX=Math.floor(COLS/2)-Math.ceil(piece[0].length/2);
   pieceY=0;
-  if(collide()){gameOver=true;endGame();}
+  dropCounter=0;
+  if(collide(pieceX,pieceY,piece)){
+    gameOver=true;
+    gameStarted=false;
+    endGame();
+  }
 }
 
-function doMoveLeft(){if(!piece||!gameStarted||gameOver)return;if(!collide(pieceX-1)){pieceX--;playSound('move');}}
-function doMoveRight(){if(!piece||!gameStarted||gameOver)return;if(!collide(pieceX+1)){pieceX++;playSound('move');}}
+function doMoveLeft(){
+  if(!piece||!gameStarted||gameOver||gameWon)return;
+  if(!collide(pieceX-1,pieceY,piece)){pieceX--;playSound('move');}
+}
+function doMoveRight(){
+  if(!piece||!gameStarted||gameOver||gameWon)return;
+  if(!collide(pieceX+1,pieceY,piece)){pieceX++;playSound('move');}
+}
 function doRotate(){
-  if(!piece||!gameStarted||gameOver)return;
+  if(!piece||!gameStarted||gameOver||gameWon)return;
   var rot=rotateMat(piece);
   if(!collide(pieceX,pieceY,rot)){piece=rot;playSound('rotate');}
   else if(!collide(pieceX+1,pieceY,rot)){piece=rot;pieceX++;playSound('rotate');}
   else if(!collide(pieceX-1,pieceY,rot)){piece=rot;pieceX--;playSound('rotate');}
 }
-function doDown(){
-  if(!piece||!gameStarted||gameOver)return;
-  if(collide(pieceX,pieceY+1)){
-    merge();
-    playSound('drop');
-    flashScreen();
-    var n=clearLines();
-    if(n){
-      var pts=n*100*level*n;
-      score+=pts;
-      lines+=n;
-      playSound('clear');
-      showCombo(n,pts);
-      var newLevel=Math.min(MAX_LEVEL,Math.floor(lines/LINES_PER_LEVEL)+1);
-      if(newLevel>level){
-        level=newLevel;
-        updateHUD();
-        playSound('levelup');
-        piece=null;
-        if(level>=MAX_LEVEL){
-          gameStarted=false;
-          setTimeout(showVictory,600);
-          return;
-        }
-        gameStarted=false;
-        setTimeout(function(){showLevelComplete(level-1);},400);
-        return;
-      }
+
+function lockPiece(){
+  merge();
+  playSound('drop');
+  flashScreen();
+  piece=null;
+  var n=clearLines();
+  if(n){
+    var pts=n*100*level*n;
+    score+=pts;
+    lines+=n;
+    playSound('clear');
+    showCombo(n,pts);
+    var newLevel=Math.min(MAX_LEVEL,Math.floor(lines/LINES_PER_LEVEL)+1);
+    if(newLevel>level){
+      level=newLevel;
       updateHUD();
+      playSound('levelup');
+      gameStarted=false;
+      if(level>=MAX_LEVEL){
+        setTimeout(showVictory,600);
+      }else{
+        setTimeout(function(){showLevelComplete(level-1);},400);
+      }
+      return;
     }
-    spawnPiece();
+    updateHUD();
+  }
+  spawnPiece();
+}
+
+function doDown(){
+  if(!piece||!gameStarted||gameOver||gameWon)return;
+  if(collide(pieceX,pieceY+1,piece)){
+    lockPiece();
   }else{
     pieceY++;
+    dropCounter=0;
   }
-  dropCounter=0;
 }
 
 function hardDrop(){
+  if(!piece||!gameStarted||gameOver||gameWon)return;
   var dropped=0;
-  while(!collide(pieceX,pieceY+1)){pieceY++;dropped++;}
+  while(!collide(pieceX,pieceY+1,piece)){pieceY++;dropped++;}
   score+=dropped*2;
-  doDown();
+  lockPiece();
 }
 
 function flashScreen(){
@@ -592,12 +608,19 @@ function endGame(){
 function loop(time){
   if(time===undefined)time=0;
   if(gameStarted&&!gameOver&&!gameWon){
-    var delta=time-lastTime;
-    dropCounter+=delta;
-    var speed=LEVEL_SPEEDS[Math.min(level,MAX_LEVEL)]||58;
-    if(dropCounter>speed){doDown();dropCounter=0;}
+    if(lastTime>0){
+      var delta=time-lastTime;
+      // Cap delta to 200ms so tabbing away doesn't cause a huge spike
+      if(delta>200)delta=200;
+      dropCounter+=delta;
+      var speed=LEVEL_SPEEDS[Math.min(level,MAX_LEVEL)]||58;
+      if(dropCounter>=speed){doDown();}
+    }
+    lastTime=time;
+  } else {
+    // Reset lastTime while paused so no delta spike on resume
+    lastTime=0;
   }
-  lastTime=time;
   draw();
   requestAnimationFrame(loop);
 }
