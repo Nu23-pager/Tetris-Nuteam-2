@@ -469,6 +469,7 @@ function collide(px,py,shape){
   if(px===undefined)px=pieceX;
   if(py===undefined)py=pieceY;
   if(shape===undefined)shape=piece;
+  if(!shape)return true; // null piece = blocked
   for(var y=0;y<shape.length;y++)for(var x=0;x<shape[y].length;x++){
     if(!shape[y][x])continue;
     var nx=px+x,ny=py+y;
@@ -489,6 +490,8 @@ function clearLines(){
   }
   if(!cleared.length)return 0;
   spawnParticles(cleared);
+  // Sort descending: splice from bottom row first so upper indices don't shift
+  cleared.sort(function(a,b){return b-a;});
   cleared.forEach(function(y){board.splice(y,1);board.unshift(new Array(COLS).fill(0));});
   return cleared.length;
 }
@@ -501,15 +504,17 @@ function spawnPiece(){
   if(collide()){gameOver=true;endGame();}
 }
 
-function doMoveLeft(){if(!collide(pieceX-1)){pieceX--;playSound('move');}}
-function doMoveRight(){if(!collide(pieceX+1)){pieceX++;playSound('move');}}
+function doMoveLeft(){if(!piece||!gameStarted||gameOver)return;if(!collide(pieceX-1)){pieceX--;playSound('move');}}
+function doMoveRight(){if(!piece||!gameStarted||gameOver)return;if(!collide(pieceX+1)){pieceX++;playSound('move');}}
 function doRotate(){
+  if(!piece||!gameStarted||gameOver)return;
   var rot=rotateMat(piece);
   if(!collide(pieceX,pieceY,rot)){piece=rot;playSound('rotate');}
   else if(!collide(pieceX+1,pieceY,rot)){piece=rot;pieceX++;playSound('rotate');}
   else if(!collide(pieceX-1,pieceY,rot)){piece=rot;pieceX--;playSound('rotate');}
 }
 function doDown(){
+  if(!piece||!gameStarted||gameOver)return;
   if(collide(pieceX,pieceY+1)){
     merge();
     playSound('drop');
@@ -526,13 +531,13 @@ function doDown(){
         level=newLevel;
         updateHUD();
         playSound('levelup');
-        piece=null; // ← clear piece so ghost/draw won't glitch while overlay shows
+        piece=null;
         if(level>=MAX_LEVEL){
           gameStarted=false;
           setTimeout(showVictory,600);
           return;
         }
-        gameStarted=false; // ← pause loop while level complete screen shows
+        gameStarted=false;
         setTimeout(function(){showLevelComplete(level-1);},400);
         return;
       }
