@@ -526,10 +526,13 @@ function doDown(){
         level=newLevel;
         updateHUD();
         playSound('levelup');
+        piece=null; // ← clear piece so ghost/draw won't glitch while overlay shows
         if(level>=MAX_LEVEL){
+          gameStarted=false;
           setTimeout(showVictory,600);
           return;
         }
+        gameStarted=false; // ← pause loop while level complete screen shows
         setTimeout(function(){showLevelComplete(level-1);},400);
         return;
       }
@@ -617,6 +620,8 @@ document.getElementById('photoInput').addEventListener('change',function(e){
 
 document.getElementById('nextBtn').onclick=function(){
   document.getElementById('levelComplete').classList.remove('show');
+  dropCounter=0;   // ← reset so piece doesn't instantly drop
+  lastTime=0;      // ← reset timing
   gameStarted=true;
   spawnPiece();
 };
